@@ -10,8 +10,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 6em;
-      color: red;
+      font-size: 8em;
       font-family: Arial, sans-serif;
       text-transform: uppercase;
       user-select: none;
@@ -21,8 +20,27 @@
 </head>
 <body id="body">
   <script>
-    // Pega aquí la URL pública de tu Apps Script (termina en /exec)
     const API_URL = "https://script.google.com/macros/s/AKfycbwQxr3zu0WKnrlkFRjnFr7BRiv6dmxoFZttzh-JOs7IrqpikVuwfqhII3m4HTq4IQl_/exec";
+
+    // Función para calcular si el texto debe ser negro o blanco según el fondo
+    function getContrasteColor(rgb) {
+      // Convertir rgb string "rgb(r,g,b)" a valores numéricos
+      const nums = rgb.match(/\d+/g).map(Number);
+      const r = nums[0], g = nums[1], b = nums[2];
+      // Fórmula para luminancia relativa
+      const luminance = (0.299*r + 0.587*g + 0.114*b)/255;
+      return luminance > 0.6 ? 'black' : 'white';
+    }
+
+    // Función para convertir nombre de color CSS a rgb string
+    function nombreAColorRgb(nombre) {
+      const tempElem = document.createElement("div");
+      tempElem.style.color = nombre;
+      document.body.appendChild(tempElem);
+      const cs = getComputedStyle(tempElem).color;
+      document.body.removeChild(tempElem);
+      return cs;
+    }
 
     async function fetchJSON(url) {
       const res = await fetch(url);
@@ -35,48 +53,48 @@
     }
 
     async function main() {
-      document.body.textContent = "Cargando configuración...";
+      document.body.textContent = "Cargando...";
       let personaId = localStorage.getItem("personaId");
       let assignedColor = null;
-    
+
       try {
         const config = await fetchJSON(`${API_URL}?action=getConfig`);
-        document.body.textContent = "Configuración cargada: " + JSON.stringify(config);
-        
         const personas = await fetchJSON(`${API_URL}?action=getPersonas`);
-        document.body.textContent = "Personas cargadas: " + personas.length;
-        
+
         if (personaId) {
           const persona = personas.find(p => p.id === personaId);
-          if (persona) {
-            assignedColor = persona.color;
-          }
+          if (persona) assignedColor = persona.color;
         }
-    
+
         if (!assignedColor) {
           personaId = generateId();
           localStorage.setItem("personaId", personaId);
-    
+
           const counts = {};
           config.colores.forEach(c => counts[c] = 0);
           personas.forEach(p => {
             if (counts[p.color] !== undefined) counts[p.color]++;
           });
-    
+
           let minColor = config.colores[0];
           config.colores.forEach(c => {
             if (counts[c] < counts[minColor]) minColor = c;
           });
-    
+
           assignedColor = minColor;
-    
+
           await fetch(`${API_URL}?action=addPersona&id=${personaId}&color=${assignedColor}`);
         }
-    
+
+        // Cambiar fondo y color texto
+        const rgbColor = nombreAColorRgb(assignedColor);
         document.body.style.backgroundColor = assignedColor;
+        document.body.style.color = getContrasteColor(rgbColor);
         document.body.textContent = assignedColor;
-    
+
       } catch (error) {
+        document.body.style.backgroundColor = "black";
+        document.body.style.color = "white";
         document.body.textContent = "Error: " + error.message;
         console.error(error);
       }
