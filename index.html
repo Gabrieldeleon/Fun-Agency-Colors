@@ -22,7 +22,7 @@
 <body id="body">
   <script>
     // Pega aquí la URL pública de tu Apps Script (termina en /exec)
-    const API_URL = "https://script.google.com/macros/s/AKfycbwQxr3zu0WKnrlkFRjnFr7BRiv6dmxoFZttzh-JOs7IrqpikVuwfqhII3m4HTq4IQl_/exec";
+    const API_URL = "TU_URL_DE_APPS_SCRIPT";
 
     async function fetchJSON(url) {
       const res = await fetch(url);
@@ -55,4 +55,34 @@
 
           // Contar personas por color
           const counts = {};
-          config.colores.for
+          config.colores.forEach(c => counts[c] = 0);
+          personas.forEach(p => {
+            if (counts[p.color] !== undefined) counts[p.color]++;
+          });
+
+          // Buscar color con menor asignación
+          let minColor = config.colores[0];
+          config.colores.forEach(c => {
+            if (counts[c] < counts[minColor]) minColor = c;
+          });
+
+          assignedColor = minColor;
+
+          // Registrar persona en Google Sheets
+          await fetch(`${API_URL}?action=addPersona&id=${personaId}&color=${assignedColor}`);
+        }
+
+        // Mostrar color y cambiar fondo
+        document.body.style.backgroundColor = assignedColor;
+        document.body.textContent = assignedColor;
+      } catch (error) {
+        document.body.style.backgroundColor = "black";
+        document.body.textContent = "Error al cargar datos";
+        console.error(error);
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>
