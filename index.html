@@ -1,0 +1,157 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tu equipo</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    .wrap {
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(255,255,255,0.14);
+      border-radius: 20px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      padding: 28px 32px;
+      max-width: 720px;
+      width: 100%;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
+    h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      line-height: 1.05;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.02em;
+    }
+    p {
+      margin: 0.5rem 0;
+      font-size: clamp(16px, 2.6vw, 22px);
+      opacity: 0.9;
+    }
+    .muted { opacity: 0.75; font-size: 14px; }
+    .btn {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 0;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 id="teamTitle">Asignando…</h1>
+      <p id="teamHint">Espera un segundo</p>
+      <button id="resetBtn" class="btn hidden">Reasignar</button>
+      <p class="muted" id="footnote"></p>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const teamsParam = params.get('teams');
+  const colorsParam = params.get('colors');
+
+  const default4 = ['Rojo', 'Azul', 'Verde', 'Amarillo'];
+  const default6 = ['Rojo', 'Azul', 'Verde', 'Amarillo', 'Naranja', 'Morado'];
+
+  let colors = null;
+  if (colorsParam) {
+    colors = colorsParam.split(',').map(c => c.trim()).filter(Boolean);
+  } else if (teamsParam === '4') {
+    colors = default4;
+  } else if (teamsParam === '6') {
+    colors = default6;
+  } else {
+    colors = default6;
+  }
+
+  const key = 'teamAssignment::' + location.pathname + '::' + (teamsParam || colorsParam || 'default');
+
+  function pickRandom(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+
+  const colorMap = {
+    'Rojo': '#e53935',
+    'Azul': '#1e88e5',
+    'Verde': '#43a047',
+    'Amarillo': '#fdd835',
+    'Naranja': '#fb8c00',
+    'Morado': '#8e24aa',
+    'Rosa': '#ec407a',
+    'Turquesa': '#26c6da',
+    'Negro': '#000000',
+    'Blanco': '#ffffff',
+    'Gris': '#9e9e9e'
+  };
+  function cssColor(name){
+    return colorMap[name] || name;
+  }
+
+  function idealTextColor(bgHex){
+    function hexToRgb(h){
+      let s = h.replace('#','');
+      if (s.length === 3) s = s.split('').map(x=>x+x).join('');
+      const num = parseInt(s, 16);
+      return {r:(num>>16)&255, g:(num>>8)&255, b:num&255};
+    }
+    function parseColor(c){
+      if (/^#/.test(c)) return hexToRgb(c);
+      const el = document.createElement('div');
+      el.style.color = c;
+      document.body.appendChild(el);
+      const rgb = getComputedStyle(el).color;
+      document.body.removeChild(el);
+      const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+      if (!m) return {r:0,g:0,b:0};
+      return {r:+m[1],g:+m[2],b:+m[3]};
+    }
+    const {r,g,b} = parseColor(bgHex);
+    const yiq = (r*299 + g*587 + b*114) / 1000;
+    return yiq >= 140 ? '#000' : '#fff';
+  }
+
+  let team = localStorage.getItem(key);
+  if (!team) {
+    team = pickRandom(colors);
+    localStorage.setItem(key, team);
+  }
+
+  const colorValue = cssColor(team);
+  document.body.style.background = colorValue;
+  const textColor = idealTextColor(colorValue);
+  document.body.style.color = textColor;
+
+  document.getElementById('teamTitle').textContent = 'Tu color: ' + team;
+  document.getElementById('teamHint').textContent = 'Muestra esta pantalla al staff';
+  document.getElementById('footnote').textContent = 'Enlace: ' + location.href;
+
+  if (params.get('reset') === '1') {
+    const btn = document.getElementById('resetBtn');
+    btn.classList.remove('hidden');
+    btn.textContent = 'Reasignar';
+    btn.addEventListener('click', function(){
+      const newTeam = pickRandom(colors);
+      localStorage.setItem(key, newTeam);
+      location.reload();
+    });
+  }
+})();
+</script>
+</body>
+</html>
