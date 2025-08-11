@@ -1,84 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Asignador de Equipos</title>
   <style>
     body {
       margin: 0;
       height: 100vh;
       display: flex;
-      align-items: center;
       justify-content: center;
-      font-size: 3em;
+      align-items: center;
+      font-size: 6em;
       color: white;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
+      text-transform: uppercase;
+      user-select: none;
+      transition: background-color 0.5s ease;
     }
   </style>
 </head>
 <body id="body">
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbxLRB5Jdc-d6VHxM1WzJoIOqLZH6-BTco3VgdfIbtQZE08TTYT-3mIYyixgmspmhVfN/exec"; // Pega aquí el URL de tu Apps Script
-    
+    // Pega aquí la URL pública de tu Apps Script (termina en /exec)
+    const API_URL = "https://script.google.com/macros/s/AKfycbwQxr3zu0WKnrlkFRjnFr7BRiv6dmxoFZttzh-JOs7IrqpikVuwfqhII3m4HTq4IQl_/exec";
 
-    async function getConfig() {
-      const res = await fetch(`${API_URL}?action=getConfig`);
+    async function fetchJSON(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Error en la respuesta");
       return res.json();
-    }
-
-    async function getPersonas() {
-      const res = await fetch(`${API_URL}?action=getPersonas`);
-      return res.json();
-    }
-
-    async function addPersona(id, nombre, color) {
-      await fetch(`${API_URL}?action=addPersona&id=${id}&nombre=${nombre}&color=${color}`);
     }
 
     function generateId() {
-      return Math.random().toString(36).substr(2, 9);
+      return Math.random().toString(36).substring(2, 10);
     }
 
     async function main() {
-      let id = localStorage.getItem("personaId");
-      let colorAsignado = null;
+      let personaId = localStorage.getItem("personaId");
+      let assignedColor = null;
 
-      const config = await getConfig();
-      const personas = await getPersonas();
+      try {
+        const config = await fetchJSON(`${API_URL}?action=getConfig`);
+        const personas = await fetchJSON(`${API_URL}?action=getPersonas`);
 
-      if (id) {
-        const persona = personas.find(p => p.id === id);
-        if (persona) {
-          colorAsignado = persona.color;
-        }
-      }
-
-      if (!colorAsignado) {
-        id = generateId();
-        localStorage.setItem("personaId", id);
-
-        // Contar cuántas personas hay en cada color
-        const conteo = {};
-        config.colores.forEach(c => conteo[c] = 0);
-        personas.forEach(p => {
-          if (conteo[p.color] !== undefined) conteo[p.color]++;
-        });
-
-        // Buscar color con menos personas
-        let minColor = config.colores[0];
-        for (const c of config.colores) {
-          if (conteo[c] < conteo[minColor]) minColor = c;
+        if (personaId) {
+          const persona = personas.find(p => p.id === personaId);
+          if (persona) {
+            assignedColor = persona.color;
+          }
         }
 
-        colorAsignado = minColor;
-        await addPersona(id, "", colorAsignado);
-      }
+        if (!assignedColor) {
+          personaId = generateId();
+          localStorage.setItem("personaId", personaId);
 
-      document.body.style.background = colorAsignado;
-      document.body.innerText = colorAsignado;
-    }
-
-    main();
-  </script>
-</body>
-</html>
+          // Contar personas por color
+          const counts = {};
+          config.colores.for
