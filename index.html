@@ -39,13 +39,23 @@
       font-size: clamp(16px, 2.6vw, 22px);
       opacity: 0.9;
     }
-    .muted { opacity: 0.75; font-size: 14px; }
+    .muted { 
+      opacity: 0.75; 
+      font-size: 14px; 
+    }
+    .loading {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1 id="teamTitle">Asignando…</h1>
+      <h1 id="teamTitle" class="loading">Asignando…</h1>
       <p id="teamHint">Espera un segundo</p>
       <p class="muted" id="footnote"></p>
     </div>
@@ -75,28 +85,72 @@
     return yiq >= 140 ? '#000' : '#fff';
   }
 
-  const apiUrl = "https://script.google.com/macros/s/AKfycbwQxr3zu0WKnrlkFRjnFr7BRiv6dmxoFZttzh-JOs7IrqpikVuwfqhII3m4HTq4IQl_/exec";
+  // Generate a unique user ID based on browser and time
+  function generateUserId() {
+    const stored = localStorage.getItem('teamAppUserId');
+    if (stored) return stored;
+    
+    const id = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('teamAppUserId', id);
+    return id;
+  }
+
+  // Replace with your actual Apps Script URL
+  const apiUrl = "https://script.google.com/macros/s/AKfycbxCR0peJ-9Vf2j9ZAY7RY7neahvUpuyOXrWBxiPHDvvNhzqfDRP94slEnSTT4-bdKI/exec";
 
   try {
-    const res = await fetch(apiUrl);
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    const data = await res.json();
+    const userId = generateUserId();
+    
+    // First, try to get existing assignment
+    const checkResponse = await fetch(`${apiUrl}?action=getPersona&id=${encodeURIComponent(userId)}`);
+    
+    let assignedColor = null;
+    
+    if (checkResponse.ok) {
+      const checkData = await checkResponse.json();
+      if (checkData.color && !checkData.error) {
+        assignedColor = checkData.color;
+      }
+    }
+    
+    // If no existing assignment, request a new one
+    if (!assignedColor) {
+      const assignResponse = await fetch(`${apiUrl}?action=assignColor&id=${encodeURIComponent(userId)}`);
+      
+      if (!assignResponse.ok) {
+        throw new Error(`HTTP error! status: ${assignResponse.status}`);
+      }
+      
+      const assignData = await assignResponse.json();
+      
+      if (assignData.error) {
+        throw new Error(assignData.error);
+      }
+      
+      assignedColor = assignData.color;
+    }
+    
+    if (!assignedColor) {
+      throw new Error('No se pudo obtener el color asignado');
+    }
 
-    // Assuming the API returns something like: { "Color": "Amarillo" }
-    const assignedColor = data.Color || "Gris";
+    // Apply the color theme
     const bgColor = colorMap[assignedColor] || "#9e9e9e";
     const textColor = idealTextColor(bgColor);
 
     document.body.style.background = bgColor;
     document.body.style.color = textColor;
     document.getElementById("teamTitle").textContent = "Tu color: " + assignedColor;
+    document.getElementById("teamTitle").classList.remove("loading");
     document.getElementById("teamHint").textContent = "Muestra esta pantalla al staff";
-    document.getElementById("footnote").textContent = "Enlace: " + location.href;
+    document.getElementById("footnote").textContent = "ID: " + userId.substr(-8);
 
   } catch (err) {
     console.error("Error fetching color:", err);
     document.getElementById("teamTitle").textContent = "Error";
-    document.getElementById("teamHint").textContent = "No se pudo obtener el color";
+    document.getElementById("teamTitle").classList.remove("loading");
+    document.getElementById("teamHint").textContent = "No se pudo obtener el color: " + err.message;
+    document.getElementById("footnote").textContent = "Intenta recargar la página";
   }
 })();
 </script>
