@@ -1,106 +1,104 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Asignador de Equipos</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tu equipo</title>
   <style>
-    body {
+    html, body {
+      height: 100%;
       margin: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 8em;
-      font-family: Arial, sans-serif;
-      text-transform: uppercase;
-      user-select: none;
-      transition: background-color 0.5s ease;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
     }
+    .wrap {
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .card {
+      background: rgba(255,255,255,0.14);
+      border-radius: 20px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      padding: 28px 32px;
+      max-width: 720px;
+      width: 100%;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
+    h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      line-height: 1.05;
+      margin: 0 0 12px 0;
+      letter-spacing: -0.02em;
+    }
+    p {
+      margin: 0.5rem 0;
+      font-size: clamp(16px, 2.6vw, 22px);
+      opacity: 0.9;
+    }
+    .muted { opacity: 0.75; font-size: 14px; }
   </style>
 </head>
-<body id="body">
-  <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwQxr3zu0WKnrlkFRjnFr7BRiv6dmxoFZttzh-JOs7IrqpikVuwfqhII3m4HTq4IQl_/exec";
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 id="teamTitle">Asignando…</h1>
+      <p id="teamHint">Espera un segundo</p>
+      <p class="muted" id="footnote"></p>
+    </div>
+  </div>
 
-    // Función para calcular si el texto debe ser negro o blanco según el fondo
-    function getContrasteColor(rgb) {
-      // Convertir rgb string "rgb(r,g,b)" a valores numéricos
-      const nums = rgb.match(/\d+/g).map(Number);
-      const r = nums[0], g = nums[1], b = nums[2];
-      // Fórmula para luminancia relativa
-      const luminance = (0.299*r + 0.587*g + 0.114*b)/255;
-      return luminance > 0.6 ? 'black' : 'white';
+<script>
+(async function(){
+  const colorMap = {
+    'Rojo': '#e53935',
+    'Azul': '#1e88e5',
+    'Verde': '#43a047',
+    'Amarillo': '#fdd835',
+    'Naranja': '#fb8c00',
+    'Morado': '#8e24aa',
+    'Gris': '#9e9e9e'
+  };
+
+  function idealTextColor(bgHex){
+    function hexToRgb(h){
+      let s = h.replace('#','');
+      if (s.length === 3) s = s.split('').map(x=>x+x).join('');
+      const num = parseInt(s, 16);
+      return {r:(num>>16)&255, g:(num>>8)&255, b:num&255};
     }
+    const {r,g,b} = hexToRgb(bgHex);
+    const yiq = (r*299 + g*587 + b*114) / 1000;
+    return yiq >= 140 ? '#000' : '#fff';
+  }
 
-    // Función para convertir nombre de color CSS a rgb string
-    function nombreAColorRgb(nombre) {
-      const tempElem = document.createElement("div");
-      tempElem.style.color = nombre;
-      document.body.appendChild(tempElem);
-      const cs = getComputedStyle(tempElem).color;
-      document.body.removeChild(tempElem);
-      return cs;
-    }
+  const apiUrl = "https://script.google.com/macros/s/AKfycbwQxr3zu0WKnrlkFRjnFr7BRiv6dmxoFZttzh-JOs7IrqpikVuwfqhII3m4HTq4IQl_/exec";
 
-    async function fetchJSON(url) {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Error en la respuesta");
-      return res.json();
-    }
+  try {
+    const res = await fetch(apiUrl);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const data = await res.json();
 
-    function generateId() {
-      return Math.random().toString(36).substring(2, 10);
-    }
+    // Assuming the API returns something like: { "Color": "Amarillo" }
+    const assignedColor = data.Color || "Gris";
+    const bgColor = colorMap[assignedColor] || "#9e9e9e";
+    const textColor = idealTextColor(bgColor);
 
-    async function main() {
-      document.body.textContent = "Cargando...";
-      let personaId = localStorage.getItem("personaId");
-      let assignedColor = null;
+    document.body.style.background = bgColor;
+    document.body.style.color = textColor;
+    document.getElementById("teamTitle").textContent = "Tu color: " + assignedColor;
+    document.getElementById("teamHint").textContent = "Muestra esta pantalla al staff";
+    document.getElementById("footnote").textContent = "Enlace: " + location.href;
 
-      try {
-        const config = await fetchJSON(`${API_URL}?action=getConfig`);
-        const personas = await fetchJSON(`${API_URL}?action=getPersonas`);
-
-        if (personaId) {
-          const persona = personas.find(p => p.id === personaId);
-          if (persona) assignedColor = persona.color;
-        }
-
-        if (!assignedColor) {
-          personaId = generateId();
-          localStorage.setItem("personaId", personaId);
-
-          const counts = {};
-          config.colores.forEach(c => counts[c] = 0);
-          personas.forEach(p => {
-            if (counts[p.color] !== undefined) counts[p.color]++;
-          });
-
-          let minColor = config.colores[0];
-          config.colores.forEach(c => {
-            if (counts[c] < counts[minColor]) minColor = c;
-          });
-
-          assignedColor = minColor;
-
-          await fetch(`${API_URL}?action=addPersona&id=${personaId}&color=${assignedColor}`);
-        }
-
-        // Cambiar fondo y color texto
-        const rgbColor = nombreAColorRgb(assignedColor);
-        document.body.style.backgroundColor = assignedColor;
-        document.body.style.color = getContrasteColor(rgbColor);
-        document.body.textContent = assignedColor;
-
-      } catch (error) {
-        document.body.style.backgroundColor = "black";
-        document.body.style.color = "white";
-        document.body.textContent = "Error: " + error.message;
-        console.error(error);
-      }
-    }
-
-    main();
-  </script>
+  } catch (err) {
+    console.error("Error fetching color:", err);
+    document.getElementById("teamTitle").textContent = "Error";
+    document.getElementById("teamHint").textContent = "No se pudo obtener el color";
+  }
+})();
+</script>
 </body>
 </html>
